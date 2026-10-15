@@ -1,0 +1,17 @@
+[project]
+name = "lab1"
+version = "0.1.0"
+description = "Network Programming - Lab 1: Concurrency in Practice"
+readme = "README.md"
+authors = [
+    { name = "Ilie Covali", email = "ilia.covali@gmail.com" }
+]
+requires-python = ">=3.13t"
+dependencies = []
+
+[project.scripts]
+lab1 = "main:main"
+
+[build-system]
+requires = ["uv_build>=0.12.21,<0.13.0"]
+build-backend = "uv_build"

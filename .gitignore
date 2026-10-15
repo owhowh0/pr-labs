@@ -1,0 +1,28 @@
+# Ignored course folder as requested
+Network_Programming_Course/
+Network_Programming_Course
+Network programming course/
+Network programming course
+
+# Large generated data files
+numbers.txt
+numbers_part_*.txt
+*.numbers
+
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info/
+.venv/
+
+# LaTeX artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz

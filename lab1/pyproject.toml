@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Network Programming - Lab 1: Concurrency in Practice"
 readme = "README.md"
 authors = [
+    { name = "Poiata Calin" },
     { name = "Ilie Covali", email = "ilia.covali@gmail.com" }
 ]
 requires-python = ">=3.13t"

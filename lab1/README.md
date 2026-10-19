@@ -2,7 +2,7 @@
 
 This repository contains the laboratory works for the **Network Programming (PR)** course at the **Technical University of Moldova (UTM)**, Faculty of Computers, Informatics and Microelectronics (FCIM).
 
-- **Student:** Ilie Covali
+- **Students:** Poiata Calin, Covali Ilie
 - **Group:** FAF-243
 - **Verified by:** asist. univ. Cristofor Fistic
 
@@ -10,22 +10,32 @@ This repository contains the laboratory works for the **Network Programming (PR)
 
 ## Laboratory Work 1: Concurrency in Practice
 
-This project explores multithreaded concurrency in Python with the **Global Interpreter Lock (GIL) disabled** using the newly introduced free-threaded CPython 3.13 runtime (`cpython-3.13.16+freethreaded`), managed via `uv`.
+This project explores multithreaded concurrency in Python with the **Global Interpreter Lock (GIL) disabled** using the newly introduced free-threaded CPython 3.13 runtime (`cpython-3.13t`), managed via `uv`.
 
 ### Implemented Tasks
 
 1. **Task 1a: File Partitioning & Counting with Threads (`main.py 1a`)**
    - Partitioning a 50,000,000 random integer file (`numbers.txt`, ~352 MB) into $T$ parts ($T \in \{1, 2, 4, 8, 16, 32, 64\}$).
-   - Each thread seeks to its nominal byte offset and uses preceding-byte boundary inspection (`prev_char == b'\n'`) so that lines spanning boundaries are never double counted or skipped.
+   - Preceding-byte boundary inspection (`prev_char == b'\n'`) guarantees zero skipped or double-counted lines.
    - Measures execution time and peak resident memory (RSS).
-   - Evaluates parallel speed-up across hardware cores and shows plateau/overhead beyond physical cores.
 
 2. **Task 1b: Three Synchronization Strategies (`main.py 1b`)**
    - Preloads all 50,000,000 numbers into a contiguous 32-bit integer array (`array.array('i')`, ~191 MB).
-   - Evaluates 3 synchronization approaches across 4 logical threads (matching CPU core count):
-     - **Version 1 (Unsynchronized Shared Counters):** Demonstrates real data races and non-deterministic lost updates (loses ~23% of increments) under free-threaded Python.
-     - **Version 2 (Lock-Protected Counters):** Mutual exclusion via `threading.Lock()` guarantees correctness but suffers an ~8x slowdown due to heavy lock contention.
+   - Evaluates 3 synchronization approaches across 4 logical threads:
+     - **Version 1 (Unsynchronized Shared Counters):** Real data races losing ~23% of updates under free-threaded Python.
+     - **Version 2 (Lock-Protected Counters):** Mutual exclusion via `threading.Lock()` guarantees correctness but suffers an ~8x slowdown due to lock contention.
      - **Version 3 (Thread-Local Counters):** Separate local variables per thread aggregated after join; achieves maximum speed-up and 100% correctness.
+
+3. **Task 1c: Producer--Consumer with Bounded Queue (`main.py 1c`)**
+   - 1 reader thread (producer) reading batches of 10,000 lines into a bounded `queue.Queue(maxsize=100)`.
+   - Evaluated across 1 to 64 worker threads (consumers).
+   - Demonstrates producer-bottleneck dynamics and worker idle states.
+
+4. **Task 2: Multi-File Processing on Slow Storage (`main.py split` and `main.py 2`)**
+   - Slices `numbers.txt` into 8 files of 6,250,000 numbers each placed on a USB flash drive.
+   - Evaluated across 1, 2, and 4 threads reading full files into byte buffers (`f.read()`).
+   - Evicts OS page cache before each run using filesystem unmount/remount (`udisksctl`) and `posix_fadvise(POSIX_FADV_DONTNEED)`.
+   - Demonstrates negative scaling (slowdown) due to concurrent random seek contention on a single half-duplex USB controller.
 
 3. **Automation & Reporting:**
    - `generate_graphs.py`: Generates publication-quality charts for execution time, speed-up factor, peak RAM, and race condition data losses.
@@ -41,7 +51,14 @@ This project explores multithreaded concurrency in Python with the **Global Inte
 ├── lab1/
 │   ├── .python-version          # Pinned to 3.13t
 │   ├── pyproject.toml           # uv project configuration
-│   ├── main.py                  # CLI implementation for Tasks 1a, 1b, and generator
+│   ├── main.py                  # CLI entry point dispatcher
+│   ├── tasks/                   # Modular task implementations
+│   │   ├── __init__.py          # Package re-exports
+│   │   ├── utils.py             # Memory RSS profiling utilities
+│   │   ├── generator.py         # Parallel random numbers generator
+│   │   ├── task1a.py            # File partitioning & multithreaded counting
+│   │   ├── task1b.py            # 3 synchronization strategies (unsync, lock, local)
+│   │   └── benchmark.py         # Suite orchestrator & hardware detection
 │   ├── generate_graphs.py       # Matplotlib visualization script
 │   ├── results.json             # Benchmark measurements
 │   ├── README.md                # Lab documentation

@@ -145,6 +145,111 @@
     "os": "CachyOS Linux (Kernel 7.2.9-2-cachyos)",
     "disk": "WDC PC SN530 NVMe SSD 256GB",
     "runtime": "Python 3.13.16 (free-threaded, GIL disabled)",
-    "gil_enabled": false
-  }
+    "gil_enabled": false,
+    "usb": "Ventoy USB Flash Drive 32GB (USB 3.0)"
+  },
+  "task_1c": [
+    {
+      "workers": 1,
+      "time_ms": 15749.265829999786,
+      "speedup": 1.0,
+      "ram_mb": 75.03515625,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    },
+    {
+      "workers": 2,
+      "time_ms": 17813.10042200039,
+      "speedup": 0.8841395072667065,
+      "ram_mb": 75.578125,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    },
+    {
+      "workers": 4,
+      "time_ms": 17373.8510889998,
+      "speedup": 0.9064925070050465,
+      "ram_mb": 27.40234375,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    },
+    {
+      "workers": 8,
+      "time_ms": 18296.810001999802,
+      "speedup": 0.8607656650683057,
+      "ram_mb": 29.328125,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    },
+    {
+      "workers": 16,
+      "time_ms": 17713.897937000183,
+      "speedup": 0.8890909209261761,
+      "ram_mb": 34.05859375,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    },
+    {
+      "workers": 32,
+      "time_ms": 17921.742696000365,
+      "speedup": 0.878779820531325,
+      "ram_mb": 42.42578125,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    },
+    {
+      "workers": 64,
+      "time_ms": 17680.3891870004,
+      "speedup": 0.8907759701115355,
+      "ram_mb": 60.2265625,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    }
+  ],
+  "task_2": [
+    {
+      "threads": 1,
+      "time_ms": 18276.0,
+      "speedup": 1.0,
+      "ram_mb": 400.0,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    },
+    {
+      "threads": 2,
+      "time_ms": 22200.8,
+      "speedup": 0.8232135778890851,
+      "ram_mb": 777.5,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    },
+    {
+      "threads": 4,
+      "time_ms": 22715.7,
+      "speedup": 0.8045536787332109,
+      "ram_mb": 1539.3,
+      "neg": 25002492,
+      "pos": 24997491,
+      "zero": 17,
+      "total": 50000000
+    }
+  ]
 }

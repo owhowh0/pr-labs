@@ -19,7 +19,7 @@
 % ---------------------------------------------------------
 % 1. TITLE PAGE
 % ---------------------------------------------------------
-\labtitle{1}{Laboratory Work 1: Concurrency in Practice}{Ilie Covali}{gr. FAF-243}{asist. univ. Cristofor Fistic}
+\labtitle{1}{Laboratory Work 1: Concurrency in Practice}{Poiata Calin\\Covali Ilie}{gr. FAF-243}{asist. univ. Cristofor Fistic}
 
 \tableofcontents
 \newpage
@@ -36,10 +36,12 @@ The objective of this laboratory work is to investigate real-world multithreaded
     \item Identifying parallel speed-up saturation points and context-switching penalties.
     \item Demonstrating race conditions and non-deterministic memory corruption in unsynchronized concurrent updates.
     \item Quantifying the performance overhead of mutual exclusion (locks) compared to thread-local aggregation.
+    \item Implementing and profiling a producer--consumer pipeline using a thread-safe bounded blocking queue.
+    \item Analyzing I/O-bound workload behavior on slow removable storage (USB flash drive) with cold OS page cache eviction.
 \end{enumerate}
 
 \subsection{Hardware and Runtime Environment}
-To ensure true OS-level thread concurrency without the Global Interpreter Lock (GIL), the implementation uses the newly released \textbf{free-threaded CPython 3.13} runtime, managed via the \texttt{uv} package and virtual environment manager.
+To ensure true OS-level thread concurrency without the Global Interpreter Lock (GIL), the implementation uses the newly released \textbf{free-threaded CPython 3.13} runtime (\texttt{cpython-3.13t}), managed via the \texttt{uv} package and virtual environment manager.
 
 \begin{table}[H]
 \centering
@@ -54,9 +56,10 @@ Architecture & x86\_64 (Zen 2) \\
 Physical Cores & 4 \\
 Logical Processors & 4 (1 thread per core, SMT disabled) \\
 RAM & 19.4 GB DDR4 \\
-Storage Subsystem & WDC PC SN530 NVMe SSD (256 GB) \\
+Primary Storage (Disk) & WDC PC SN530 NVMe SSD (256 GB) \\
+Removable Storage (USB) & Ventoy USB 3.0 Flash Drive (32 GB, partition \texttt{/dev/sda1}) \\
 Operating System & CachyOS Linux (Kernel 7.2.9-2-cachyos) \\
-Programming Language & Python 3.13.16+freethreaded (Clang 23.1.3 build) \\
+Programming Language & Python 3.13.16+freethreaded (Clang build) \\
 GIL Status & Disabled (\texttt{sys.\_is\_gil\_enabled() == False}) \\
 Environment Tool & \texttt{uv} 0.12+ \\
 \bottomrule
@@ -68,7 +71,7 @@ The input dataset consists of a text file \texttt{numbers.txt} containing exactl
 \begin{equation}
 \text{Total} = \text{Count}(\text{negative}) + \text{Count}(\text{positive}) + \text{Count}(\text{zero}) = 50\,000\,000
 \end{equation}
-Every implemented task must satisfy this strict conservation invariant.
+For Task 2, \texttt{numbers.txt} is split, in sequential order, into 8 distinct partition files (\texttt{part\_0.txt} through \texttt{part\_7.txt}) containing exactly $6\,250\,000$ numbers each, copied directly to the USB flash drive. Every task must satisfy this strict count conservation invariant.
 
 \newpage
 
@@ -113,7 +116,7 @@ The benchmark was executed with 2 separate runs per thread configuration using i
 \end{tabular}
 \end{table}
 
-\textbf{Correctness verification:} Across all thread configurations (1 through 64), every single trial produced identical sign totals:
+\textbf{Correctness verification:} Across all thread configurations (1 through 64), every trial produced identical sign totals:
 \begin{equation}
 \text{Negative} = 25\,002\,492, \quad \text{Positive} = 24\,997\,491, \quad \text{Zero} = 17, \quad \text{Total} = 50\,000\,000
 \end{equation}
@@ -126,11 +129,16 @@ This confirms that the boundary-seeking logic operates with zero omission and ze
 \label{fig:task1a}
 \end{figure}
 
-\subsection{Discussion and Analysis}
+\subsection{Task 1a Questions and Discussion}
 \begin{enumerate}
-    \item \textbf{Scaling Behavior:} Execution time drops dramatically from $6896.3\text{ ms}$ on 1 thread to $2789.0\text{ ms}$ on 4 threads, yielding a $2.47\times$ speed-up. Because the test CPU possesses 4 physical execution cores without SMT, scaling scales directly up to 4 threads.
-    \item \textbf{Plateau Beyond 4 Threads:} For 8, 16, 32, and 64 threads, execution time plateaus at $\approx 2.7\text{ seconds}$ ($2.50\times - 2.57\times$ speed-up). Over-subscribing 4 physical cores with 64 OS threads introduces operating system scheduler overhead and register context switching, which prevents any further speed gains.
-    \item \textbf{Memory Invariance:} Peak RAM remains modest between $29.6\text{ MB}$ and $60.2\text{ MB}$. Because each thread streams lines directly from disk using small internal file buffers, memory usage is decoupled from the dataset size ($352\text{ MB}$).
+    \item \textbf{At which number of threads does the speed-up stop growing? Relate it to your physical cores and logical processors:}\\
+    The speed-up grows substantially from 1 thread ($6896.3\text{ ms}$) to 4 threads ($2789.0\text{ ms}$, achieving a $2.47\times$ speed-up), but completely stops growing beyond 4 threads. This correlates exactly with the test machine's hardware: the AMD Ryzen 3 4300U has 4 physical cores and 4 logical processors (without SMT). Because there are only 4 hardware execution pipelines, assigning more than 4 worker threads provides no additional computational capacity.
+    
+    \item \textbf{Why do 32 and 64 threads not help? Are they slower, and why?}\\
+    Threads 32 and 64 do not improve throughput ($2711.1\text{ ms}$ and $2732.6\text{ ms}$ vs $2680.1\text{ ms}$ at 8 threads). When 64 threads contend for 4 CPU cores, the OS kernel must continuously preempt and context-switch threads. Context switching incurs CPU cycle penalties for saving/restoring register states, invalidates L1/L2 instruction and data caches, and causes cache line bouncing. The workload is strictly bounded by the 4 physical CPU cores.
+    
+    \item \textbf{Does the peak memory depend on the number of threads? Why?}\\
+    Peak memory remains low across all configurations, increasing only slightly from $29.6\text{ MB}$ (1 thread) to $60.2\text{ MB}$ (16 threads). This modest growth occurs because each OS thread allocates its own execution stack and small internal CPython I/O buffer ($8\text{ KB}$ per file descriptor). Because each thread streams lines sequentially from disk rather than buffering the file in memory, memory consumption is independent of the dataset size ($352\text{ MB}$).
 \end{enumerate}
 
 \newpage
@@ -141,7 +149,7 @@ This confirms that the boundary-seeking logic operates with zero omission and ze
 \section{Task 1b: Three Synchronization Strategies for Sign Counting}
 
 \subsection{Experimental Setup}
-In Task 1b, all $50\,000\,000$ integers are preloaded into a contiguous in-memory 32-bit signed integer buffer using Python's native \texttt{array.array('i')}. The array occupies $190.73\text{ MB}$ of contiguous memory.
+In Task 1b, all $50\,000\,000$ integers are preloaded into a contiguous in-memory 32-bit signed integer buffer using Python's native \texttt{array.array('i')}. The array occupies $190.73\text{ MB}$ of contiguous RAM.
 
 With thread count matched to the machine's 4 logical execution processors ($T = 4$), the elements are partitioned into 4 uniform slices of $12\,500\,000$ integers. The signs are counted under three distinct synchronization paradigms:
 \begin{enumerate}
@@ -151,7 +159,7 @@ With thread count matched to the machine's 4 logical execution processors ($T = 
 \end{enumerate}
 
 \subsection{Experimental Results}
-As mandated by the laboratory specification, Version 1 was executed three consecutive times to observe race condition non-determinism.
+Version 1 was executed three consecutive times to observe race condition non-determinism.
 
 \begin{table}[H]
 \centering
@@ -176,32 +184,200 @@ Version 3 (Thread-Local)    & 2386.4 & --- & --- & \textbf{2386.4} & 50 000 000 
 \label{fig:task1b}
 \end{figure}
 
-\subsection{Discussion and Analysis}
+\subsection{Task 1b Questions and Discussion}
 \begin{enumerate}
-    \item \textbf{Demonstration of Race Conditions in Free-Threaded Python:}
-    In standard CPython, the Global Interpreter Lock serialize bytecode execution, masking many race conditions. In free-threaded Python 3.13t with GIL disabled, \texttt{shared.neg += 1} expands to discrete load-increment-store instructions executed concurrently across 4 hardware cores. Multiple cores simultaneously read identical values, overwrite each other's increments, and lose over $11.5\text{ million}$ updates ($\approx 23\%$ data loss). Furthermore, the three runs of Version 1 produced distinct counts ($38\,458\,125$, $38\,995\,000$, and $38\,237\,826$), proving non-deterministic execution.
-    \item \textbf{Overhead of Lock Contention:}
-    Version 2 guarantees correctness ($50\,000\,000$ counted), but requires $18\,818.6\text{ ms}$---a massive \textbf{7.89$\times$ slowdown} compared to Version 3 ($2386.4\text{ ms}$). Because all 4 cores attempt to acquire the identical mutex $50\,000\,000$ times, cache lines holding the lock bounce between CPU L1/L2 caches, causing extreme bus contention and thread stalls.
-    \item \textbf{Dominance of Thread-Local Aggregation:}
-    Version 3 is the fastest and most efficient paradigm. Threads operate strictly on private stack variables residing in fast L1 cache with zero synchronization overhead. A single $O(T)$ summation at the end yields exact correctness in only $2.38\text{ seconds}$.
+    \item \textbf{Rank the three versions of Task 1b by time. Which of them are correct? Explain each result:}\\
+    The execution time ranking from fastest to slowest is:
+    \begin{align}
+    \text{Version 3 (Thread-Local, } 2386.4\text{ ms}) &< \text{Version 1 (Unsynchronized, } 10003.2\text{ ms}) \notag \\
+    &< \text{Version 2 (Lock-Protected, } 18818.6\text{ ms})
+    \end{align}
+    Only \textbf{Version 2} and \textbf{Version 3} are correct ($50\,000\,000$ numbers counted). Version 1 is incorrect, losing approximately $23\%$ of all updates.
+    
+    \item \textbf{Explanation of Version 1 (Unsynchronized):}\\
+    Under free-threaded Python (no GIL), \texttt{count += 1} translates to a non-atomic read-modify-write sequence: (1) load counter from memory into register, (2) increment register, (3) store register back to memory. When multiple threads execute this sequence concurrently on different CPU cores, thread interleaving causes stale reads and overwritten writes.
+    
+    \item \textbf{Explanation of Version 2 (Lock-Protected):}\\
+    Version 2 guarantees correctness by serializing access with a mutex lock, but it is \textbf{7.89$\times$ slower} than Version 3. Acquiring and releasing a lock $50\,000\,000$ times generates severe lock contention, bus locking, and operating system sleep/wakeup syscalls (futexes).
+    
+    \item \textbf{Explanation of Version 3 (Thread-Local):}\\
+    Version 3 achieves optimal throughput because each core increments private variables residing in fast CPU registers or L1 cache with zero synchronization overhead. Combining the counts requires only a trivial $O(T)$ post-join addition.
 \end{enumerate}
 
 \newpage
 
 % ---------------------------------------------------------
-% 5. UNFINISHED SECTIONS AS REQUESTED
+% 5. TASK 1c: PRODUCER AND CONSUMERS
 % ---------------------------------------------------------
-\section{Task 1c: Producer and Consumers Pipeline}
-\textit{[Note: This section is left unfinished as requested by the user.]}
+\section{Task 1c: Producer and Consumers with Bounded Queue}
 
-\vspace{1cm}
+\subsection{Architecture and Specification}
+Task 1c implements an asynchronous pipeline separating file reading (I/O) from data parsing and sign counting (CPU):
+\begin{itemize}
+    \item \textbf{Producer (Reader Thread):} Exactly one dedicated thread reads \texttt{numbers.txt} line by line in binary mode, groups them into batches of $10\,000$ lines, and enqueues them into a thread-safe blocking queue (\texttt{queue.Queue(maxsize=100)}).
+    \item \textbf{Bounded Queue:} Holds at most 100 batches ($1\,000\,000$ lines total). When the queue reaches capacity, the producer blocks until consumers make space, guaranteeing bounded memory usage.
+    \item \textbf{Consumers (Worker Threads):} Evaluated across $W \in \{1, 2, 4, 8, 16, 32, 64\}$ workers. Each worker repeatedly dequeues a batch, parses the integers, and maintains local counters.
+    \item \textbf{Termination Protocol:} At EOF, the producer pushes $W$ distinct sentinel values (\texttt{None}) into the queue. Each consumer shuts down upon receiving a sentinel.
+\end{itemize}
 
-\section{Task 2: Many Files on Slow Storage}
-\textit{[Note: This section is left unfinished as requested by the user.]}
+\subsection{Experimental Results}
 
-\vspace{1cm}
+\begin{table}[H]
+\centering
+\small
+\caption{Task 1c Benchmark Results (1 Producer, Bounded Queue maxsize=100, batch=10 000)}
+\label{tab:task1c_results}
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{Workers} & \textbf{Time (ms)} & \textbf{Speed-up} & \textbf{Peak RAM (MB)} & \textbf{Total Counted} & \textbf{Negative} & \textbf{Positive} \\
+\midrule
+1  & 15749.3 & 1.00$\times$ & 75.0 & 50 000 000 & 25 002 492 & 24 997 491 \\
+2  & 17813.1 & 0.88$\times$ & 75.6 & 50 000 000 & 25 002 492 & 24 997 491 \\
+4  & 17373.9 & 0.91$\times$ & 27.4 & 50 000 000 & 25 002 492 & 24 997 491 \\
+8  & 18296.8 & 0.86$\times$ & 29.3 & 50 000 000 & 25 002 492 & 24 997 491 \\
+16 & 17713.9 & 0.89$\times$ & 34.1 & 50 000 000 & 25 002 492 & 24 997 491 \\
+32 & 17921.7 & 0.88$\times$ & 42.4 & 50 000 000 & 25 002 492 & 24 997 491 \\
+64 & 17680.4 & 0.89$\times$ & 60.2 & 50 000 000 & 25 002 492 & 24 997 491 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\section{Control Questions and Conclusion}
-\textit{[Note: This section is left unfinished as requested by the user.]}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/fig3_task1c.png}
+\caption{Task 1c: Producer--Consumer execution time compared against Task 1a, and peak memory versus worker count.}
+\label{fig:task1c}
+\end{figure}
+
+\subsection{Task 1c Questions and Discussion}
+\begin{enumerate}
+    \item \textbf{Compare Task 1c with Task 1a. Which one is faster, and why?}\\
+    Task 1a is significantly faster than Task 1c. At 4 threads, Task 1a completes in \textbf{$2789.0\text{ ms}$}, whereas Task 1c requires \textbf{$17373.9\text{ ms}$}---making Task 1a \textbf{6.23$\times$ faster}.
+    \begin{itemize}
+        \item In Task 1a, all 4 threads read and parse their independent file chunks in parallel directly from NVMe storage.
+        \item In Task 1c, the architecture is bottlenecked by the single sequential reader thread. The producer must read all $50\,000\,000$ lines, allocate $5\,000$ Python list objects containing $10\,000$ line references each, and coordinate through queue locks and condition variables.
+    \end{itemize}
+
+    \item \textbf{At which number of workers does Task 1c stop getting faster?}\\
+    Task 1c stops getting faster immediately at \textbf{1 worker}. Across all worker counts ($W \in \{1, 2, 4, 8, 16, 32, 64\}$), execution time remains flat at $\approx 17.5\text{ seconds}$. Because the consumers can parse a $10\,000$-line batch much faster than the single reader can produce it, the queue is perpetually empty and the workers spend the majority of their time idling in wait states.
+
+    \item \textbf{What would happen with batches of a single line?}\\
+    Batching single lines would require $50\,000\,000$ separate enqueue (\texttt{q.put()}) and dequeue (\texttt{q.get()}) operations. Each operation requires acquiring an internal mutex, signaling condition variables, and modifying queue nodes. This extreme lock contention and synchronization overhead would cause execution time to explode by orders of magnitude (hundreds of seconds).
+
+    \item \textbf{What would happen with a queue that has no size limit?}\\
+    An unbounded queue would allow the fast producer to read the entire file and push all $50\,000\,000$ lines into memory before consumers finish. Allocating $50\,000\,000$ line objects and list nodes would consume several gigabytes of RAM, destroying the memory isolation guarantee of the system.
+\end{enumerate}
+
+\newpage
+
+% ---------------------------------------------------------
+% 6. TASK 2: MANY FILES ON SLOW STORAGE
+% ---------------------------------------------------------
+\section{Task 2: Many Files on Slow Storage (USB Flash Drive)}
+
+\subsection{Experimental Setup and Cache Eviction}
+Task 2 investigates how concurrency behaves when the workload transitions from fast NVMe storage to slow removable media:
+\begin{itemize}
+    \item \textbf{Storage Medium:} Ventoy USB 3.0 Flash Drive (32 GB, formatted with FAT32).
+    \item \textbf{Workload Partitioning:} The $50\,000\,000$ numbers dataset is split sequentially into 8 distinct files of $6\,250\,000$ numbers each (\texttt{part\_0.txt} to \texttt{part\_7.txt}, $\approx 44.0\text{ MB}$ each).
+    \item \textbf{Unit of Work:} A file is the atomic unit of work. Each thread reads its assigned file in a \textbf{single operation into one byte buffer} via \texttt{f.read()}, parses the buffer in-memory, and tallies the signs.
+    \item \textbf{Cold-Cache Enforcement:} To ensure no data is served from the operating system's page cache (RAM), the USB filesystem is unmounted and remounted before every benchmark run using \texttt{udisksctl unmount} and \texttt{udisksctl mount}. Additionally, \texttt{os.posix\_fadvise(POSIX\_FADV\_DONTNEED)} is called on the file descriptors.
+\end{itemize}
+
+\subsection{Experimental Results}
+The benchmark was evaluated across 1, 2, and 4 threads dividing the 8 files evenly (8 files/thread, 4 files/thread, and 2 files/thread respectively).
+
+\begin{table}[H]
+\centering
+\caption{Task 2 Benchmark Results on USB Flash Drive (Cold OS Page Cache)}
+\label{tab:task2_results}
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{Threads} & \textbf{Files / Thread} & \textbf{Time (ms)} & \textbf{Speed-up} & \textbf{Peak RAM (MB)} & \textbf{Total Counted} \\
+\midrule
+1 & 8 & 18 276.0 & 1.00$\times$ & 400.0 & 50 000 000 \\
+2 & 4 & 22 200.8 & \textbf{0.82$\times$ (Slowdown)} & 777.5 & 50 000 000 \\
+4 & 2 & 22 715.7 & \textbf{0.80$\times$ (Slowdown)} & 1539.3 & 50 000 000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/fig4_task2.png}
+\caption{Task 2: Execution time and linear peak memory scaling on USB flash drive.}
+\label{fig:task2}
+\end{figure}
+
+\subsection{Task 2 Questions and Discussion}
+\begin{enumerate}
+    \item \textbf{Compare the time on one thread with Task 1a on one thread. On the USB drive, is the work CPU-bound or I/O-bound? Support the answer with numbers:}\\
+    On 1 thread:
+    \begin{itemize}
+        \item Task 1a (NVMe SSD): \textbf{$6896.3\text{ ms}$}
+        \item Task 2 (USB Drive): \textbf{$18276.0\text{ ms}$}
+    \end{itemize}
+    Parsing the identical $50\,000\,000$ numbers on the USB drive is \textbf{2.65$\times$ slower} ($11.38\text{ seconds}$ of pure storage transfer penalty). On the NVMe SSD, data transfer was instantaneous, making CPU parsing the bottleneck (CPU-bound). On the USB flash drive, the transfer rate of the USB controller and NAND flash is the bottleneck ($18.28\text{ s}$ total), demonstrating that the workload is strictly \textbf{I/O-bound}.
+
+    \item \textbf{On the USB drive, do more threads help? Why not, when lecture showed that I/O-bound work benefits from concurrency?}\\
+    On the USB drive, more threads \textbf{do not help}---in fact, concurrency causes a performance degradation (\textbf{0.80$\times$ slowdown}):
+    \begin{itemize}
+        \item \textbf{The Nature of USB Storage:} A standard USB flash drive operates over a half-duplex USB bus and utilizes a cheap flash controller lacking multi-queue capabilities (unlike NVMe with dozens of submission queues).
+        \item \textbf{Random vs. Sequential I/O:} When 1 thread reads 8 files sequentially, the flash controller streams continuous blocks efficiently. When 2 or 4 threads issue concurrent reads to different files, the requests interleave, forcing the flash controller to jump across physical NAND flash blocks. This creates head-of-line blocking, internal write-buffer thrashing, and bus contention.
+        \item \textbf{Why Network I/O Differs:} Concurrency benefits I/O-bound workloads when waiting on \textit{independent, distributed remote channels} (e.g., thousands of separate web servers across a network). On a single shared local physical bus, concurrent requests create physical device contention.
+    \end{itemize}
+
+    \item \textbf{Linear Memory Scaling Explanation:}\\
+    Peak RAM scales linearly with thread count ($400.0\text{ MB} \to 777.5\text{ MB} \to 1539.3\text{ MB}$). Because each file of $6\,250\,000$ numbers is loaded in a single operation into one byte buffer and parsed via \texttt{splitlines()}, one active file occupies $\approx 390\text{ MB}$ of memory structures. With 4 threads operating simultaneously, 4 entire files are buffered concurrently in RAM ($4 \times 390\text{ MB} \approx 1.54\text{ GB}$).
+\end{enumerate}
+
+\newpage
+
+% ---------------------------------------------------------
+% 7. CONCLUSION
+% ---------------------------------------------------------
+\section{Conclusion}
+
+Through systematic benchmarking across four distinct tasks on free-threaded Python 3.13, this laboratory work provided concrete empirical insights into multithreaded systems programming:
+\begin{enumerate}
+    \item \textbf{CPU-Bound Workload Characterization:} Task 1a on fast NVMe storage demonstrated classic CPU-bound parallel scaling. Scaling scaled from 1 to 4 threads ($2.47\times$ speed-up) perfectly aligned with the 4 physical CPU cores of the Ryzen 3 4300U, after which speed-up saturated due to lack of hardware execution units.
+    \item \textbf{True Race Conditions in Free-Threaded Python:} Task 1b confirmed that without the Global Interpreter Lock, unsynchronized shared memory writes produce severe lost updates ($\approx 23\%$ data loss). Lock synchronization fixed correctness but incurred an $8\times$ performance penalty due to lock contention. Thread-local aggregation proved to be the optimal design pattern, delivering both 100\% correctness and maximum throughput.
+    \item \textbf{Producer Bottlenecks in Pipelines:} Task 1c demonstrated that a concurrent consumer pool cannot overcome a single-threaded sequential producer bottleneck. The producer-consumer model must be designed with parallel producers or chunked multi-file ingestion to avoid worker starvation.
+    \item \textbf{I/O-Bound Workload on Removable Storage:} Task 2 demonstrated that I/O-bound workloads on single-controller storage devices (USB flash drives) suffer from thread concurrency. Interleaving read requests destroyed sequential transfer efficiency, causing execution time to increase from $18.28\text{ s}$ to $22.72\text{ s}$.
+\end{enumerate}
+
+\vspace{0.5cm}
+
+% ---------------------------------------------------------
+% 8. CONTROL QUESTIONS
+% ---------------------------------------------------------
+\section{Control Questions}
+
+\begin{enumerate}
+    \item \textbf{What is the difference between a physical core and a logical processor? Where did it show in your charts?}\\
+    A physical core is an independent, complete hardware processing unit fabricated onto the silicon die, equipped with its own ALUs, FPUs, registers, and L1/L2 caches. A logical processor is an architectural execution context exposed to the OS scheduler (e.g., via Simultaneous Multithreading / Intel Hyper-Threading, where one physical core hosts two execution contexts sharing the same underlying hardware). On the AMD Ryzen 3 4300U, there are 4 physical cores and 4 logical processors (no SMT). In Figure~\ref{fig:task1a}, this manifested as a steep speed-up increase from 1 to 4 threads, followed by a flat horizontal plateau from 4 to 64 threads.
+
+    \item \textbf{How did you make sure that no line was counted twice or skipped at the boundary between two parts of the file?}\\
+    Using preceding-byte boundary inspection: each thread $t > 0$ seeks to its nominal byte offset $\text{start}_t - 1$ and inspects the preceding byte. If the preceding byte was a newline (\texttt{\textbackslash n}), the cut landed cleanly on a line boundary and the thread starts immediately. If not, the cut sliced through the middle of a line; the thread discards the remainder of the fractured line via \texttt{readline()} and begins parsing from the next complete line. Concurrently, the preceding thread $t - 1$ reads past $\text{end}_{t-1}$ until it encounters a newline, ensuring that the fractured line is processed exactly once.
+
+    \item \textbf{Explain step by step how unsynchronised shared counters lose updates.}\\
+    The statement \texttt{shared.neg += 1} consists of three separate machine operations:
+    \begin{enumerate}
+        \item \textbf{Read:} Core 0 and Core 1 both read the counter variable from shared memory into their respective private registers (both read value $V$).
+        \item \textbf{Modify:} Both cores independently increment their local register to $V + 1$.
+        \item \textbf{Write:} Core 0 writes $V + 1$ back to memory. Immediately after, Core 1 writes $V + 1$ back to memory.
+    \end{enumerate}
+    Two distinct increments occurred, but the final stored value only increased by 1. One increment was permanently lost. Across $50\,000\,000$ increments, this race condition destroyed over $11.5\text{ million}$ counts ($23\%$).
+
+    \item \textbf{Why are per-thread counters faster than shared counters protected by a lock?}\\
+    When multiple cores update a shared locked variable, they must acquire a mutual exclusion primitive. This triggers cache coherence invalidation traffic (MESI protocol): the cache line holding the lock and counter must bounce between CPU core caches, causing high bus latency and CPU stalls. If the lock is held, contending threads are suspended into kernel sleep states (futexes). Per-thread counters operate strictly on thread-local registers or L1 cache lines with zero bus communication, zero locks, and zero pipeline stalls.
+
+    \item \textbf{What does ``I/O-bound'' mean for a USB drive, and for a server waiting on the network? Why does concurrency help in only one of the two cases?}\\
+    ``I/O-bound'' means the execution speed of the process is limited by the rate at which input/output operations complete rather than the CPU's processing power. For a USB drive, the bottleneck is a single shared physical controller and half-duplex serial bus; concurrent threads issue competing read requests that interleave and cause random seek/block fragmentation on the same device. For a network server, the bottleneck is high round-trip network latency waiting on thousands of \textit{independent} remote endpoints; while thread A waits on client A's network packet, the CPU can immediately switch to thread B and process client B's packet, achieving massive concurrency overlap.
+
+    \item \textbf{What is the difference between dividing the work into equal parts in advance and taking it from a queue? When is each one better?}\\
+    \textbf{Static partitioning (in advance):} Divides the workload into predetermined static chunks ($S/T$). It has zero synchronization overhead during execution, minimal memory footprint, and is optimal when work items have uniform processing times and the storage medium supports parallel access (e.g., Task 1a on NVMe).\\
+    \textbf{Dynamic queue (producer--consumer):} Workers pull dynamic batches from a shared thread-safe queue. It naturally balances workloads when work items have unpredictable or highly variable processing times, but incurs continuous synchronization, queue locking, and memory allocation overhead.
+\end{enumerate}
 
 \end{document}

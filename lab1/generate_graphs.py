@@ -1,8 +1,10 @@
 """
 Generate report figures from benchmark results.
 Produces:
-- report/images/fig1_task1a.png: Time, speed-up, and memory vs thread count.
+- report/images/fig1_task1a.png: Time, speed-up, and memory vs thread count for Task 1a.
 - report/images/fig2_task1b.png: Execution time and total numbers counted for Task 1b.
+- report/images/fig3_task1c.png: Comparison of Producer-Consumer (1c) vs File Partitioning (1a).
+- report/images/fig4_task2.png: Task 2 execution time and peak RAM on USB drive.
 """
 
 import json
@@ -12,7 +14,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-def plot_graphs(json_path: str = "lab1/results.json", out_dir: str = "lab1/report/images") -> None:
+def plot_graphs(json_path: str = "results.json", out_dir: str = "report/images") -> None:
     os.makedirs(out_dir, exist_ok=True)
     with open(json_path, "r") as f:
         data = json.load(f)
@@ -124,8 +126,93 @@ def plot_graphs(json_path: str = "lab1/results.json", out_dir: str = "lab1/repor
     plt.close(fig)
     print(f"Saved Figure 2 to: {fig2_path}")
 
+    # -------------------------------------------------------------
+    # Figure 3: Task 1c vs Task 1a Comparison
+    # -------------------------------------------------------------
+    if "task_1c" in data:
+        t1c = data["task_1c"]
+        workers = [x["workers"] for x in t1c]
+        t1c_times = [x["time_ms"] for x in t1c]
+        t1c_ram = [x["ram_mb"] for x in t1c]
+
+        fig, (cx1, cx2) = plt.subplots(1, 2, figsize=(14, 4.5), dpi=300)
+
+        # Subplot 1: Task 1c vs Task 1a Execution Time
+        cx1.plot(threads, avg_times, marker="o", color="#1f77b4", linewidth=2, label="Task 1a: File Partitioning (Direct)")
+        cx1.plot(workers, t1c_times, marker="s", color="#e377c2", linewidth=2, label="Task 1c: Producer-Consumer Queue")
+        cx1.set_xscale("log", base=2)
+        cx1.set_xticks(workers)
+        cx1.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+        cx1.set_xlabel("Number of Workers / Threads", fontweight="bold")
+        cx1.set_ylabel("Execution Time (ms)", fontweight="bold")
+        cx1.set_title("Task 1c vs Task 1a: Execution Time Comparison", fontweight="bold", fontsize=11)
+        cx1.grid(True, linestyle="--", alpha=0.6)
+        cx1.legend(loc="center right", frameon=True)
+
+        # Subplot 2: Task 1c Memory vs Workers
+        cx2.plot(workers, t1c_ram, marker="^", color="#17becf", linewidth=2, label="Task 1c Peak RAM")
+        cx2.set_xscale("log", base=2)
+        cx2.set_xticks(workers)
+        cx2.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+        cx2.set_xlabel("Number of Workers", fontweight="bold")
+        cx2.set_ylabel("Peak RAM (MB)", fontweight="bold")
+        cx2.set_title("Task 1c: Peak Memory vs Worker Threads", fontweight="bold", fontsize=11)
+        cx2.grid(True, linestyle="--", alpha=0.6)
+        cx2.set_ylim(0, max(t1c_ram) * 1.4)
+        cx2.legend(loc="upper left", frameon=True)
+
+        plt.tight_layout()
+        fig3_path = os.path.join(out_dir, "fig3_task1c.png")
+        fig.savefig(fig3_path)
+        plt.close(fig)
+        print(f"Saved Figure 3 to: {fig3_path}")
+
+    # -------------------------------------------------------------
+    # Figure 4: Task 2 (Slow Storage / USB Flash Drive)
+    # -------------------------------------------------------------
+    if "task_2" in data:
+        t2 = data["task_2"]
+        t2_threads = [x["threads"] for x in t2]
+        t2_times = [x["time_ms"] for x in t2]
+        t2_ram = [x["ram_mb"] for x in t2]
+
+        fig, (dx1, dx2) = plt.subplots(1, 2, figsize=(12, 4.5), dpi=300)
+
+        # Subplot 1: Task 2 Execution Time
+        bars_t2 = dx1.bar([str(t) for t in t2_threads], t2_times, color="#9467bd", width=0.5, edgecolor="black", linewidth=0.8)
+        dx1.set_xlabel("Number of Threads", fontweight="bold")
+        dx1.set_ylabel("Execution Time (ms)", fontweight="bold")
+        dx1.set_title("Task 2: Execution Time on USB Flash Drive", fontweight="bold", fontsize=11)
+        dx1.grid(True, axis="y", linestyle="--", alpha=0.6)
+        for b in bars_t2:
+            h = b.get_height()
+            dx1.annotate(f"{h:.1f} ms",
+                         xy=(b.get_x() + b.get_width() / 2, h),
+                         xytext=(0, 4), textcoords="offset points",
+                         ha="center", va="bottom", fontweight="bold")
+
+        # Subplot 2: Task 2 Peak RAM
+        bars_ram = dx2.bar([str(t) for t in t2_threads], t2_ram, color="#bcbd22", width=0.5, edgecolor="black", linewidth=0.8)
+        dx2.set_xlabel("Number of Threads", fontweight="bold")
+        dx2.set_ylabel("Peak RAM (MB)", fontweight="bold")
+        dx2.set_title("Task 2: Linear Memory Scaling with Buffer Concurrency", fontweight="bold", fontsize=11)
+        dx2.grid(True, axis="y", linestyle="--", alpha=0.6)
+        for b in bars_ram:
+            h = b.get_height()
+            dx2.annotate(f"{h:.1f} MB",
+                         xy=(b.get_x() + b.get_width() / 2, h),
+                         xytext=(0, 4), textcoords="offset points",
+                         ha="center", va="bottom", fontweight="bold")
+
+        plt.tight_layout()
+        fig4_path = os.path.join(out_dir, "fig4_task2.png")
+        fig.savefig(fig4_path)
+        plt.close(fig)
+        print(f"Saved Figure 4 to: {fig4_path}")
+
 
 if __name__ == "__main__":
     import sys
-    jpath = sys.argv[1] if len(sys.argv) > 1 else "lab1/results.json"
-    plot_graphs(jpath)
+    jpath = sys.argv[1] if len(sys.argv) > 1 else "results.json"
+    odir = sys.argv[2] if len(sys.argv) > 2 else "report/images"
+    plot_graphs(jpath, odir)

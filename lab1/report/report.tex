@@ -51,17 +51,17 @@ To ensure true OS-level thread concurrency without the Global Interpreter Lock (
 \toprule
 \textbf{Component} & \textbf{Specification} \\
 \midrule
-CPU Model & AMD Ryzen 3 4300U with Radeon Graphics \\
+CPU Model & AMD Ryzen 7 4700U with Radeon Graphics \\
 Architecture & x86\_64 (Zen 2) \\
-Physical Cores & 4 \\
-Logical Processors & 4 (1 thread per core, SMT disabled) \\
-RAM & 19.4 GB DDR4 \\
-Primary Storage (Disk) & WDC PC SN530 NVMe SSD (256 GB) \\
+Physical Cores & 8 \\
+Logical Processors & 8 (1 thread per core, SMT disabled) \\
+RAM & 16 GB DDR4 \\
+Primary Storage (Disk) & SAMSUNG MZALQ512HALU-000L1 NVMe SSD (512 GB) \\
 Removable Storage (USB) & Ventoy USB 3.0 Flash Drive (32 GB, partition \texttt{/dev/sda1}) \\
-Operating System & CachyOS Linux (Kernel 7.2.9-2-cachyos) \\
+Operating System & Arch Linux (Kernel 7.2.11-arch1-1) \\
 Programming Language & Python 3.13.16+freethreaded (Clang build) \\
 GIL Status & Disabled (\texttt{sys.\_is\_gil\_enabled() == False}) \\
-Environment Tool & \texttt{uv} 0.12+ \\
+Environment Tool & \texttt{uv} 0.13+ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -105,13 +105,13 @@ The benchmark was executed with 2 separate runs per thread configuration using i
 \toprule
 \textbf{Threads} & \textbf{Run 1 (ms)} & \textbf{Run 2 (ms)} & \textbf{Avg Time (ms)} & \textbf{Speed-up} & \textbf{Peak RAM (MB)} & \textbf{Total Counted} \\
 \midrule
-1  & 6921.9 & 6870.8 & 6896.3 & 1.00$\times$ & 29.6 & 50 000 000 \\
-2  & 5021.7 & 5051.0 & 5036.3 & 1.37$\times$ & 31.4 & 50 000 000 \\
-4  & 2773.6 & 2804.5 & 2789.0 & 2.47$\times$ & 35.5 & 50 000 000 \\
-8  & 2716.1 & 2644.2 & 2680.1 & 2.57$\times$ & 44.0 & 50 000 000 \\
-16 & 2719.3 & 2791.0 & 2755.1 & 2.50$\times$ & 60.2 & 50 000 000 \\
-32 & 2704.6 & 2717.6 & 2711.1 & 2.54$\times$ & 52.0 & 50 000 000 \\
-64 & 2689.1 & 2776.1 & 2732.6 & 2.52$\times$ & 46.0 & 50 000 000 \\
+1  & 5479.4 & 5441.6 & 5460.5 & 1.00$\times$ & 35.7 & 50 000 000 \\
+2  & 4268.9 & 4277.1 & 4273.0 & 1.28$\times$ & 37.9 & 50 000 000 \\
+4  & 2252.1 & 2409.3 & 2330.7 & 2.34$\times$ & 41.8 & 50 000 000 \\
+8  & 1572.5 & 1437.1 & 1504.8 & 3.63$\times$ & 52.1 & 50 000 000 \\
+16 & 1602.5 & 1668.5 & 1635.5 & 3.34$\times$ & 64.3 & 50 000 000 \\
+32 & 1499.4 & 1515.4 & 1507.4 & 3.62$\times$ & 62.2 & 50 000 000 \\
+64 & 1588.6 & 1524.1 & 1556.4 & 3.51$\times$ & 60.4 & 50 000 000 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -132,13 +132,13 @@ This confirms that the boundary-seeking logic operates with zero omission and ze
 \subsection{Task 1a Questions and Discussion}
 \begin{enumerate}
     \item \textbf{At which number of threads does the speed-up stop growing? Relate it to your physical cores and logical processors:}\\
-    The speed-up grows substantially from 1 thread ($6896.3\text{ ms}$) to 4 threads ($2789.0\text{ ms}$, achieving a $2.47\times$ speed-up), but completely stops growing beyond 4 threads. This correlates exactly with the test machine's hardware: the AMD Ryzen 3 4300U has 4 physical cores and 4 logical processors (without SMT). Because there are only 4 hardware execution pipelines, assigning more than 4 worker threads provides no additional computational capacity.
+    The speed-up grows substantially from 1 thread ($5460.5\text{ ms}$) to 8 threads ($1504.8\text{ ms}$, achieving a $3.63\times$ speed-up), but stops growing beyond 8 threads. This correlates exactly with the test machine's hardware: the AMD Ryzen 7 4700U has 8 physical cores and 8 logical processors (without SMT). Because there are 8 hardware execution pipelines, assigning more than 8 worker threads provides no additional computational capacity.
     
     \item \textbf{Why do 32 and 64 threads not help? Are they slower, and why?}\\
-    Threads 32 and 64 do not improve throughput ($2711.1\text{ ms}$ and $2732.6\text{ ms}$ vs $2680.1\text{ ms}$ at 8 threads). When 64 threads contend for 4 CPU cores, the OS kernel must continuously preempt and context-switch threads. Context switching incurs CPU cycle penalties for saving/restoring register states, invalidates L1/L2 instruction and data caches, and causes cache line bouncing. The workload is strictly bounded by the 4 physical CPU cores.
+    Threads 32 and 64 do not improve throughput ($1507.4\text{ ms}$ and $1556.4\text{ ms}$ vs $1504.8\text{ ms}$ at 8 threads). When 64 threads contend for 8 CPU cores, the OS kernel must continuously preempt and context-switch threads. Context switching incurs CPU cycle penalties for saving/restoring register states, invalidates L1/L2 instruction and data caches, and causes cache line bouncing. The workload is strictly bounded by the 8 physical CPU cores.
     
     \item \textbf{Does the peak memory depend on the number of threads? Why?}\\
-    Peak memory remains low across all configurations, increasing only slightly from $29.6\text{ MB}$ (1 thread) to $60.2\text{ MB}$ (16 threads). This modest growth occurs because each OS thread allocates its own execution stack and small internal CPython I/O buffer ($8\text{ KB}$ per file descriptor). Because each thread streams lines sequentially from disk rather than buffering the file in memory, memory consumption is independent of the dataset size ($352\text{ MB}$).
+    Peak memory remains low across all configurations, increasing only slightly from $35.7\text{ MB}$ (1 thread) to $64.3\text{ MB}$ (16 threads). This modest growth occurs because each OS thread allocates its own execution stack and small internal CPython I/O buffer ($8\text{ KB}$ per file descriptor). Because each thread streams lines sequentially from disk rather than buffering the file in memory, memory consumption is independent of the dataset size ($352\text{ MB}$).
 \end{enumerate}
 
 \newpage
@@ -151,9 +151,9 @@ This confirms that the boundary-seeking logic operates with zero omission and ze
 \subsection{Experimental Setup}
 In Task 1b, all $50\,000\,000$ integers are preloaded into a contiguous in-memory 32-bit signed integer buffer using Python's native \texttt{array.array('i')}. The array occupies $190.73\text{ MB}$ of contiguous RAM.
 
-With thread count matched to the machine's 4 logical execution processors ($T = 4$), the elements are partitioned into 4 uniform slices of $12\,500\,000$ integers. The signs are counted under three distinct synchronization paradigms:
+With thread count matched to the machine's 8 logical execution processors ($T = 8$), the elements are partitioned into 8 uniform slices of $6\,250\,000$ integers. The signs are counted under three distinct synchronization paradigms:
 \begin{enumerate}
-    \item \textbf{Version 1 (Unsynchronized Shared Counters):} All 4 threads concurrently execute in-place increments (\texttt{shared.neg += 1}, \texttt{shared.pos += 1}, \texttt{shared.zero += 1}) without locks or atomics.
+    \item \textbf{Version 1 (Unsynchronized Shared Counters):} All 8 threads concurrently execute in-place increments (\texttt{shared.neg += 1}, \texttt{shared.pos += 1}, \texttt{shared.zero += 1}) without locks or atomics.
     \item \textbf{Version 2 (Lock-Protected Counters):} Every counter update is enclosed within a mutual exclusion lock (\texttt{threading.Lock()}).
     \item \textbf{Version 3 (Thread-Local Counters):} Each thread independently counts signs in local CPU registers/variables. Totals are summed into a global accumulator only after all threads finish.
 \end{enumerate}
@@ -164,15 +164,15 @@ Version 1 was executed three consecutive times to observe race condition non-det
 \begin{table}[H]
 \centering
 \small
-\caption{Task 1b Benchmark Results ($T = 4$ threads, $50\,000\,000$ in-memory integers)}
+\caption{Task 1b Benchmark Results ($T = 8$ threads, $50\,000\,000$ in-memory integers)}
 \label{tab:task1b_results}
 \begin{tabular}{lcccccc}
 \toprule
-\textbf{Synchronization Version} & \textbf{Run 1 (ms)} & \textbf{Run 2 (ms)} & \textbf{Run 3 (ms)} & \textbf{Avg Time (ms)} & \textbf{Counted} & \textbf{Correct?} \\
+\textbf{Synchronization Version} & \textbf{Run 1 (ms)} & \textbf{Run 2 (ms)} & \textbf{Run 3 (ms)} & \textbf{Avg Time (ms)} & \textbf{Counted} \\
 \midrule
-Version 1 (Unsynchronized) & 9977.1 & 10015.0 & 10017.6 & 10003.2 & 38 458 125 & \textbf{No} (Lost 23\%) \\
-Version 2 (Lock-Protected)  & 18818.6 & --- & --- & 18818.6 & 50 000 000 & \textbf{Yes} \\
-Version 3 (Thread-Local)    & 2386.4 & --- & --- & \textbf{2386.4} & 50 000 000 & \textbf{Yes} \\
+Version 1 (Unsynchronized) & 26322.2 & 27398.5 & 27488.2 & 27069.6 & 20 733 102 \\
+Version 2 (Lock-Protected)  & 68286.4 & --- & --- & 68286.4 & 50 000 000 \\
+Version 3 (Thread-Local)    & 2836.1 & --- & --- & \textbf{2836.1} & 50 000 000 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -189,16 +189,16 @@ Version 3 (Thread-Local)    & 2386.4 & --- & --- & \textbf{2386.4} & 50 000 000 
     \item \textbf{Rank the three versions of Task 1b by time. Which of them are correct? Explain each result:}\\
     The execution time ranking from fastest to slowest is:
     \begin{align}
-    \text{Version 3 (Thread-Local, } 2386.4\text{ ms}) &< \text{Version 1 (Unsynchronized, } 10003.2\text{ ms}) \notag \\
-    &< \text{Version 2 (Lock-Protected, } 18818.6\text{ ms})
+    \text{Version 3 (Thread-Local, } 2836.1\text{ ms}) &< \text{Version 1 (Unsynchronized, } 27069.6\text{ ms}) \notag \\
+    &< \text{Version 2 (Lock-Protected, } 68286.4\text{ ms})
     \end{align}
-    Only \textbf{Version 2} and \textbf{Version 3} are correct ($50\,000\,000$ numbers counted). Version 1 is incorrect, losing approximately $23\%$ of all updates.
+    Only \textbf{Version 2} and \textbf{Version 3} are correct ($50\,000\,000$ numbers counted). Version 1 is incorrect, losing approximately $58.5\%$ of all updates due to rampant uncoordinated concurrent writes across all 8 CPU cores.
     
     \item \textbf{Explanation of Version 1 (Unsynchronized):}\\
     Under free-threaded Python (no GIL), \texttt{count += 1} translates to a non-atomic read-modify-write sequence: (1) load counter from memory into register, (2) increment register, (3) store register back to memory. When multiple threads execute this sequence concurrently on different CPU cores, thread interleaving causes stale reads and overwritten writes.
     
     \item \textbf{Explanation of Version 2 (Lock-Protected):}\\
-    Version 2 guarantees correctness by serializing access with a mutex lock, but it is \textbf{7.89$\times$ slower} than Version 3. Acquiring and releasing a lock $50\,000\,000$ times generates severe lock contention, bus locking, and operating system sleep/wakeup syscalls (futexes).
+    Version 2 guarantees correctness by serializing access with a mutex lock, but it is \textbf{24.08$\times$ slower} than Version 3 ($68286.4\text{ ms}$ vs $2836.1\text{ ms}$). Acquiring and releasing a lock $50\,000\,000$ times with 8 threads contending generates severe lock contention, bus locking, and operating system sleep/wakeup syscalls (futexes).
     
     \item \textbf{Explanation of Version 3 (Thread-Local):}\\
     Version 3 achieves optimal throughput because each core increments private variables residing in fast CPU registers or L1 cache with zero synchronization overhead. Combining the counts requires only a trivial $O(T)$ post-join addition.
@@ -231,13 +231,13 @@ Task 1c implements an asynchronous pipeline separating file reading (I/O) from d
 \toprule
 \textbf{Workers} & \textbf{Time (ms)} & \textbf{Speed-up} & \textbf{Peak RAM (MB)} & \textbf{Total Counted} & \textbf{Negative} & \textbf{Positive} \\
 \midrule
-1  & 15749.3 & 1.00$\times$ & 75.0 & 50 000 000 & 25 002 492 & 24 997 491 \\
-2  & 17813.1 & 0.88$\times$ & 75.6 & 50 000 000 & 25 002 492 & 24 997 491 \\
-4  & 17373.9 & 0.91$\times$ & 27.4 & 50 000 000 & 25 002 492 & 24 997 491 \\
-8  & 18296.8 & 0.86$\times$ & 29.3 & 50 000 000 & 25 002 492 & 24 997 491 \\
-16 & 17713.9 & 0.89$\times$ & 34.1 & 50 000 000 & 25 002 492 & 24 997 491 \\
-32 & 17921.7 & 0.88$\times$ & 42.4 & 50 000 000 & 25 002 492 & 24 997 491 \\
-64 & 17680.4 & 0.89$\times$ & 60.2 & 50 000 000 & 25 002 492 & 24 997 491 \\
+1  & 8106.2 & 1.00$\times$ & 586.7 & 50 000 000 & 25 002 492 & 24 997 491 \\
+2  & 7969.4 & 1.02$\times$ & 586.7 & 50 000 000 & 25 002 492 & 24 997 491 \\
+4  & 7955.5 & 1.02$\times$ & 586.7 & 50 000 000 & 25 002 492 & 24 997 491 \\
+8  & 8096.0 & 1.00$\times$ & 586.7 & 50 000 000 & 25 002 492 & 24 997 491 \\
+16 & 8194.0 & 0.99$\times$ & 586.7 & 50 000 000 & 25 002 492 & 24 997 491 \\
+32 & 7966.5 & 1.02$\times$ & 586.7 & 50 000 000 & 25 002 492 & 24 997 491 \\
+64 & 7885.0 & 1.03$\times$ & 586.7 & 50 000 000 & 25 002 492 & 24 997 491 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -252,14 +252,14 @@ Task 1c implements an asynchronous pipeline separating file reading (I/O) from d
 \subsection{Task 1c Questions and Discussion}
 \begin{enumerate}
     \item \textbf{Compare Task 1c with Task 1a. Which one is faster, and why?}\\
-    Task 1a is significantly faster than Task 1c. At 4 threads, Task 1a completes in \textbf{$2789.0\text{ ms}$}, whereas Task 1c requires \textbf{$17373.9\text{ ms}$}---making Task 1a \textbf{6.23$\times$ faster}.
+    Task 1a is significantly faster than Task 1c. At 8 threads, Task 1a completes in \textbf{$1504.8\text{ ms}$}, whereas Task 1c requires \textbf{$8096.0\text{ ms}$}---making Task 1a \textbf{5.38$\times$ faster}.
     \begin{itemize}
-        \item In Task 1a, all 4 threads read and parse their independent file chunks in parallel directly from NVMe storage.
+        \item In Task 1a, all 8 threads read and parse their independent file chunks in parallel directly from NVMe storage.
         \item In Task 1c, the architecture is bottlenecked by the single sequential reader thread. The producer must read all $50\,000\,000$ lines, allocate $5\,000$ Python list objects containing $10\,000$ line references each, and coordinate through queue locks and condition variables.
     \end{itemize}
 
     \item \textbf{At which number of workers does Task 1c stop getting faster?}\\
-    Task 1c stops getting faster immediately at \textbf{1 worker}. Across all worker counts ($W \in \{1, 2, 4, 8, 16, 32, 64\}$), execution time remains flat at $\approx 17.5\text{ seconds}$. Because the consumers can parse a $10\,000$-line batch much faster than the single reader can produce it, the queue is perpetually empty and the workers spend the majority of their time idling in wait states.
+    Task 1c stops getting faster immediately at \textbf{1 worker}. Across all worker counts ($W \in \{1, 2, 4, 8, 16, 32, 64\}$), execution time remains flat at $\approx 8.0\text{ seconds}$. Because the consumers can parse a $10\,000$-line batch much faster than the single reader can produce it, the queue is perpetually empty and the workers spend the majority of their time idling in wait states.
 
     \item \textbf{What would happen with batches of a single line?}\\
     Batching single lines would require $50\,000\,000$ separate enqueue (\texttt{q.put()}) and dequeue (\texttt{q.get()}) operations. Each operation requires acquiring an internal mutex, signaling condition variables, and modifying queue nodes. This extreme lock contention and synchronization overhead would cause execution time to explode by orders of magnitude (hundreds of seconds).
@@ -314,10 +314,10 @@ The benchmark was evaluated across 1, 2, and 4 threads dividing the 8 files even
     \item \textbf{Compare the time on one thread with Task 1a on one thread. On the USB drive, is the work CPU-bound or I/O-bound? Support the answer with numbers:}\\
     On 1 thread:
     \begin{itemize}
-        \item Task 1a (NVMe SSD): \textbf{$6896.3\text{ ms}$}
+        \item Task 1a (NVMe SSD): \textbf{$5460.5\text{ ms}$}
         \item Task 2 (USB Drive): \textbf{$18276.0\text{ ms}$}
     \end{itemize}
-    Parsing the identical $50\,000\,000$ numbers on the USB drive is \textbf{2.65$\times$ slower} ($11.38\text{ seconds}$ of pure storage transfer penalty). On the NVMe SSD, data transfer was instantaneous, making CPU parsing the bottleneck (CPU-bound). On the USB flash drive, the transfer rate of the USB controller and NAND flash is the bottleneck ($18.28\text{ s}$ total), demonstrating that the workload is strictly \textbf{I/O-bound}.
+    Parsing the identical $50\,000\,000$ numbers on the USB drive is \textbf{3.35$\times$ slower} ($12.82\text{ seconds}$ of pure storage transfer penalty). On the NVMe SSD, data transfer was instantaneous, making CPU parsing the bottleneck (CPU-bound). On the USB flash drive, the transfer rate of the USB controller and NAND flash is the bottleneck ($18.28\text{ s}$ total), demonstrating that the workload is strictly \textbf{I/O-bound}.
 
     \item \textbf{On the USB drive, do more threads help? Why not, when lecture showed that I/O-bound work benefits from concurrency?}\\
     On the USB drive, more threads \textbf{do not help}---in fact, concurrency causes a performance degradation (\textbf{0.80$\times$ slowdown}):
@@ -340,8 +340,8 @@ The benchmark was evaluated across 1, 2, and 4 threads dividing the 8 files even
 
 Through systematic benchmarking across four distinct tasks on free-threaded Python 3.13, this laboratory work provided concrete empirical insights into multithreaded systems programming:
 \begin{enumerate}
-    \item \textbf{CPU-Bound Workload Characterization:} Task 1a on fast NVMe storage demonstrated classic CPU-bound parallel scaling. Scaling scaled from 1 to 4 threads ($2.47\times$ speed-up) perfectly aligned with the 4 physical CPU cores of the Ryzen 3 4300U, after which speed-up saturated due to lack of hardware execution units.
-    \item \textbf{True Race Conditions in Free-Threaded Python:} Task 1b confirmed that without the Global Interpreter Lock, unsynchronized shared memory writes produce severe lost updates ($\approx 23\%$ data loss). Lock synchronization fixed correctness but incurred an $8\times$ performance penalty due to lock contention. Thread-local aggregation proved to be the optimal design pattern, delivering both 100\% correctness and maximum throughput.
+    \item \textbf{CPU-Bound Workload Characterization:} Task 1a on fast NVMe storage demonstrated classic CPU-bound parallel scaling. Scaling scaled from 1 to 8 threads ($3.63\times$ speed-up) perfectly aligned with the 8 physical CPU cores of the Ryzen 7 4700U, after which speed-up saturated due to lack of additional hardware execution units.
+    \item \textbf{True Race Conditions in Free-Threaded Python:} Task 1b confirmed that without the Global Interpreter Lock, unsynchronized shared memory writes produce severe lost updates ($\approx 58.5\%$ data loss with 8 threads). Lock synchronization fixed correctness but incurred a $24\times$ performance penalty due to extreme lock contention. Thread-local aggregation proved to be the optimal design pattern, delivering both 100\% correctness and maximum throughput.
     \item \textbf{Producer Bottlenecks in Pipelines:} Task 1c demonstrated that a concurrent consumer pool cannot overcome a single-threaded sequential producer bottleneck. The producer-consumer model must be designed with parallel producers or chunked multi-file ingestion to avoid worker starvation.
     \item \textbf{I/O-Bound Workload on Removable Storage:} Task 2 demonstrated that I/O-bound workloads on single-controller storage devices (USB flash drives) suffer from thread concurrency. Interleaving read requests destroyed sequential transfer efficiency, causing execution time to increase from $18.28\text{ s}$ to $22.72\text{ s}$.
 \end{enumerate}
@@ -355,7 +355,7 @@ Through systematic benchmarking across four distinct tasks on free-threaded Pyth
 
 \begin{enumerate}
     \item \textbf{What is the difference between a physical core and a logical processor? Where did it show in your charts?}\\
-    A physical core is an independent, complete hardware processing unit fabricated onto the silicon die, equipped with its own ALUs, FPUs, registers, and L1/L2 caches. A logical processor is an architectural execution context exposed to the OS scheduler (e.g., via Simultaneous Multithreading / Intel Hyper-Threading, where one physical core hosts two execution contexts sharing the same underlying hardware). On the AMD Ryzen 3 4300U, there are 4 physical cores and 4 logical processors (no SMT). In Figure~\ref{fig:task1a}, this manifested as a steep speed-up increase from 1 to 4 threads, followed by a flat horizontal plateau from 4 to 64 threads.
+    A physical core is an independent, complete hardware processing unit fabricated onto the silicon die, equipped with its own ALUs, FPUs, registers, and L1/L2 caches. A logical processor is an architectural execution context exposed to the OS scheduler (e.g., via Simultaneous Multithreading / Intel Hyper-Threading, where one physical core hosts two execution contexts sharing the same underlying hardware). On the AMD Ryzen 7 4700U, there are 8 physical cores and 8 logical processors (no SMT). In Figure~\ref{fig:task1a}, this manifested as a steep speed-up increase from 1 to 8 threads, followed by a flat horizontal plateau from 8 to 64 threads.
 
     \item \textbf{How did you make sure that no line was counted twice or skipped at the boundary between two parts of the file?}\\
     Using preceding-byte boundary inspection: each thread $t > 0$ seeks to its nominal byte offset $\text{start}_t - 1$ and inspects the preceding byte. If the preceding byte was a newline (\texttt{\textbackslash n}), the cut landed cleanly on a line boundary and the thread starts immediately. If not, the cut sliced through the middle of a line; the thread discards the remainder of the fractured line via \texttt{readline()} and begins parsing from the next complete line. Concurrently, the preceding thread $t - 1$ reads past $\text{end}_{t-1}$ until it encounters a newline, ensuring that the fractured line is processed exactly once.
@@ -367,7 +367,7 @@ Through systematic benchmarking across four distinct tasks on free-threaded Pyth
         \item \textbf{Modify:} Both cores independently increment their local register to $V + 1$.
         \item \textbf{Write:} Core 0 writes $V + 1$ back to memory. Immediately after, Core 1 writes $V + 1$ back to memory.
     \end{enumerate}
-    Two distinct increments occurred, but the final stored value only increased by 1. One increment was permanently lost. Across $50\,000\,000$ increments, this race condition destroyed over $11.5\text{ million}$ counts ($23\%$).
+    Two distinct increments occurred, but the final stored value only increased by 1. One increment was permanently lost. Across $50\,000\,000$ increments across 8 threads, this race condition destroyed over $29.2\text{ million}$ counts ($58.5\%$).
 
     \item \textbf{Why are per-thread counters faster than shared counters protected by a lock?}\\
     When multiple cores update a shared locked variable, they must acquire a mutual exclusion primitive. This triggers cache coherence invalidation traffic (MESI protocol): the cache line holding the lock and counter must bounce between CPU core caches, causing high bus latency and CPU stalls. If the lock is held, contending threads are suspended into kernel sleep states (futexes). Per-thread counters operate strictly on thread-local registers or L1 cache lines with zero bus communication, zero locks, and zero pipeline stalls.

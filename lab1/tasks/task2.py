@@ -79,15 +79,7 @@ def _worker_2(file_paths: List[str], results: List[Tuple[int, int, int]], idx: i
 
     for path in file_paths:
         with open(path, "rb") as f:
-            try:
-                os.posix_fadvise(f.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
-            except (AttributeError, OSError):
-                pass
             buf = f.read()  # Single operation into one byte buffer
-            try:
-                os.posix_fadvise(f.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
-            except (AttributeError, OSError):
-                pass
 
         for line in buf.splitlines():
             if not line:

@@ -7,7 +7,7 @@ authors = [
     { name = "Poiata Calin" },
     { name = "Ilie Covali", email = "ilia.covali@gmail.com" }
 ]
-requires-python = ">=3.13t"
+requires-python = ">=3.13"
 dependencies = []
 
 [project.scripts]

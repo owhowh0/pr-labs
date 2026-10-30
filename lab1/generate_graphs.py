@@ -22,6 +22,7 @@ def plot_graphs(json_path: str = "results.json", out_dir: str = "report/images")
     # -------------------------------------------------------------
     # Figure 1: Task 1a (Time, Speed-up, Memory)
     # -------------------------------------------------------------
+    cores = data.get("hardware", {}).get("physical_cores", 8)
     t1a = data["task_1a"]
     threads = [x["threads"] for x in t1a]
     avg_times = [x["avg_time"] for x in t1a]
@@ -39,13 +40,13 @@ def plot_graphs(json_path: str = "results.json", out_dir: str = "report/images")
     ax1.set_ylabel("Execution Time (ms)", fontweight="bold")
     ax1.set_title("Task 1a: Execution Time vs Threads", fontweight="bold", fontsize=11)
     ax1.grid(True, linestyle="--", alpha=0.6)
-    ax1.axvline(x=4, color="gray", linestyle=":", label="4 Physical Cores")
+    ax1.axvline(x=cores, color="gray", linestyle=":", label=f"{cores} Physical Cores")
     ax1.legend(loc="upper right", frameon=True)
 
     # Subplot 2: Parallel Speed-up
-    ideal_speedup = [min(t, 4) for t in threads]
+    ideal_speedup = [min(t, cores) for t in threads]
     ax2.plot(threads, speedups, marker="s", color="#2ca02c", linewidth=2, markersize=6, label="Measured Speed-up")
-    ax2.plot(threads, ideal_speedup, linestyle="--", color="gray", alpha=0.7, label="Ideal (up to 4 cores)")
+    ax2.plot(threads, ideal_speedup, linestyle="--", color="gray", alpha=0.7, label=f"Ideal (up to {cores} cores)")
     ax2.set_xscale("log", base=2)
     ax2.set_xticks(threads)
     ax2.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
@@ -53,7 +54,7 @@ def plot_graphs(json_path: str = "results.json", out_dir: str = "report/images")
     ax2.set_ylabel("Speed-up Factor", fontweight="bold")
     ax2.set_title("Task 1a: Speed-up vs Threads", fontweight="bold", fontsize=11)
     ax2.grid(True, linestyle="--", alpha=0.6)
-    ax2.axvline(x=4, color="gray", linestyle=":", label="4 Physical Cores")
+    ax2.axvline(x=cores, color="gray", linestyle=":", label=f"{cores} Physical Cores")
     ax2.legend(loc="upper left", frameon=True)
 
     # Subplot 3: Peak RAM
@@ -132,8 +133,8 @@ def plot_graphs(json_path: str = "results.json", out_dir: str = "report/images")
     if "task_1c" in data:
         t1c = data["task_1c"]
         workers = [x["workers"] for x in t1c]
-        t1c_times = [x["time_ms"] for x in t1c]
-        t1c_ram = [x["ram_mb"] for x in t1c]
+        t1c_times = [x.get("time_ms", x.get("avg_time", 0)) for x in t1c]
+        t1c_ram = [x.get("ram_mb", x.get("ram_r1", 0)) for x in t1c]
 
         fig, (cx1, cx2) = plt.subplots(1, 2, figsize=(14, 4.5), dpi=300)
 

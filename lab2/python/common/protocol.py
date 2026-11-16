@@ -68,15 +68,17 @@ class SocketConnection:
             return line.strip()
 
     def close(self) -> None:
-        with self._send_lock, self._recv_lock:
-            if not self._closed:
-                self._closed = True
-                try:
-                    self.sock.shutdown(socket.SHUT_RDWR)
-                except OSError:
-                    pass
-                finally:
-                    self.sock.close()
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        try:
+            self.sock.close()
+        except OSError:
+            pass
 
     @property
     def is_closed(self) -> bool:

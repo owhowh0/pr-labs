@@ -135,6 +135,7 @@ class CoffeeClient:
                 print(f"[CLIENT ERROR] {e}")
 
         self.close()
+        sys.exit(0)
 
     def _handle_order_cmd(self, args: str) -> None:
         """

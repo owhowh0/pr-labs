@@ -126,6 +126,7 @@ class CoffeeProvider:
                 print(f"[PROVIDER ERROR] {e}")
 
         self.close()
+        sys.exit(0)
 
     def _handle_deliver_cmd(self, args: str) -> None:
         """

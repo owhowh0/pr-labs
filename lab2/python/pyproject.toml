@@ -1,0 +1,14 @@
+[project]
+name = "lab2-coffee-shop"
+version = "0.1.0"
+description = "Network Programming - Lab 2: Coffee Shop Client, Provider & Test Harness"
+readme = "README.md"
+authors = [
+    { name = "Ilie Covali", email = "ilia.covali@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+coffee-client = "client:main"
+coffee-provider = "provider:main"

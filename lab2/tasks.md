@@ -101,21 +101,30 @@
 lab2/
 ├── tasks.md                    # This work breakdown
 ├── protocol.md                 # Detailed wire protocol specs
-├── go/                         # Member 1 (Server)
+├── go/                         # Member 1 (Go TCP Server)
 │   ├── go.mod
 │   ├── main.go
-│   ├── server/
-│   │   ├── listener.go         # Socket accept loop
-│   │   ├── stock.go            # Thread-safe inventory
-│   │   ├── workers.go          # Worker pool & queue
-│   │   └── handlers.go         # Command dispatcher
-└── python/                     # Member 2 (Clients & Harness)
-    ├── common/
-    │   └── protocol.py         # Framing & socket helpers
-    ├── client.py               # Interactive client CLI
-    ├── provider.py             # Interactive provider CLI
-    └── test_harness/
-        ├── test_race.py        # Concurrent race-condition demo
-        ├── test_cancellation.py# Disconnect & rollback demo
-        └── fuzzer.py           # Malformed input tester
+│   └── server/
+│       ├── connection.go
+│       ├── handlers.go
+│       ├── server.go
+│       ├── stock.go
+│       └── workers.go
+├── python/                     # Member 2 (Python Client & Provider)
+│   ├── common/
+│   │   └── protocol.py         # Framing & socket helpers
+│   ├── client.py               # Interactive client CLI
+│   ├── provider.py             # Interactive provider CLI
+│   ├── pyproject.toml
+│   └── README.md
+├── tests/                      # Integration Test Suite
+│   ├── server_manager.py       # Auto-spawns & terminates Go server
+│   ├── test_client_flow.py
+│   ├── test_provider_flow.py
+│   ├── test_cross_race.py      # Concurrent race-condition demo
+│   ├── test_cross_cancellation.py # Disconnect & rollback demo
+│   ├── test_cross_fuzz.py      # Malformed input tester
+│   ├── run_all.py              # Master runner
+│   └── README.md
+└── report/                     # Report documents
 ```

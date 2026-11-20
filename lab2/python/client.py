@@ -194,6 +194,11 @@ def main():
     parser.add_argument("port", nargs="?", type=int, default=8080, help="Server port (default: 8080)")
     args = parser.parse_args()
 
+    # If user provided a single numeric argument (e.g. `client.py 8080`), treat it as the port
+    if args.host.isdigit() and args.port == 8080:
+        args.port = int(args.host)
+        args.host = "127.0.0.1"
+
     client = CoffeeClient(args.host, args.port)
     if client.connect():
         client.run_interactive()
